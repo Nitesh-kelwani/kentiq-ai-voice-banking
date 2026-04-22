@@ -300,6 +300,7 @@ def render_transfer_form(services: dict[str, object]) -> None:
         st.session_state.voice_audio_bytes = build_voice_response_audio(full_message, save_to_file=False)
         st.success("Your transaction is complete!")
         speak_text_in_browser(full_message)
+        st.session_state.last_spoken_text = full_message
         st.success(success_message)
 
 

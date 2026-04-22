@@ -96,7 +96,7 @@ Classify the user's request into exactly one of these intents:
 
 Extract transfer fields only if they are clearly mentioned.
 If the request is incomplete or vague, set needs_clarification to true and ask one short follow-up question.
-Make assistant_reply natural, short, and suitable for a voice bot.
+Make assistant_reply a simple, natural, and short acknowledgment of the user's intent. Important: Do NOT include any follow-up questions or ask for missing information in assistant_reply. The system will handle asking for missing details separately.
 Do not invent values that the user did not say.
 
 User speech:
