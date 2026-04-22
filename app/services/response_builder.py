@@ -66,3 +66,9 @@ class ResponseBuilder:
 
     def kyc_intro(self) -> str:
         return "Let's begin your KYC process. I will record audio first and then video."
+
+    def ask_continue(self) -> str:
+        return "Do you want anything else?"
+
+    def goodbye(self) -> str:
+        return "Thank you, goodbye."

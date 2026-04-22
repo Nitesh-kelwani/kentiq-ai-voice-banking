@@ -47,6 +47,7 @@ def init_session_state() -> None:
     st.session_state.setdefault("audio_error", "")
     st.session_state.setdefault("latest_intent_name", "")
     st.session_state.setdefault("last_spoken_text", "")
+    st.session_state.setdefault("voice_interaction_started", False)
     st.session_state.setdefault(
         "transfer_form",
         {
@@ -83,7 +84,7 @@ def transcribe_audio(uploaded_audio) -> str:
         raise RuntimeError("Unable to read the recorded audio input.") from error
 
 
-def build_voice_response_audio(text: str) -> bytes | None:
+def build_voice_response_audio(text: str, save_to_file: bool = True) -> bytes | None:
     """Generate playable response audio bytes using pyttsx3 when possible."""
     if not text:
         return None
@@ -96,7 +97,12 @@ def build_voice_response_audio(text: str) -> bytes | None:
         st.session_state.audio_error = "pyttsx3 is not installed for server-side audio generation."
         return None
 
-    output_path = AUDIO_DIR / f"ui_response_{int(time.time() * 1000)}.wav"
+    if save_to_file:
+        output_path = AUDIO_DIR / f"ui_response_{int(time.time() * 1000)}.wav"
+    else:
+        # Use a temporary path that won't be saved
+        import tempfile
+        output_path = Path(tempfile.mktemp(suffix=".wav"))
 
     try:
         engine = pyttsx3.init()
@@ -105,7 +111,11 @@ def build_voice_response_audio(text: str) -> bytes | None:
         engine.runAndWait()
 
         if output_path.exists():
-            return output_path.read_bytes()
+            audio_bytes = output_path.read_bytes()
+            # Clean up temporary file if not saving
+            if not save_to_file:
+                output_path.unlink()
+            return audio_bytes
     except Exception as error:
         st.session_state.audio_error = f"Server-side audio generation failed: {error}"
         return None
@@ -159,8 +169,7 @@ def build_assistant_reply(intent: StructuredIntent, services: dict[str, object])
     bank_service = services["bank_service"]
 
     if intent.name == "balance":
-        base_reply = intent.assistant_reply or "Sure, let me check your balance."
-        return f"{base_reply} {bank_service.get_balance()}".strip()
+        return bank_service.get_balance()
 
     if intent.name == "transfer":
         intro = responses.transfer_intro(intent)
@@ -206,7 +215,7 @@ def process_voice_request(uploaded_audio, services: dict[str, object]) -> None:
     if intent.name == "transfer":
         prefill_transfer_form(intent.transfer)
 
-    st.session_state.voice_audio_bytes = build_voice_response_audio(reply_text)
+    st.session_state.voice_audio_bytes = build_voice_response_audio(reply_text, save_to_file=False)
 
 
 def validate_transfer_form(form_data: dict[str, object]) -> list[str]:
@@ -266,7 +275,10 @@ def render_transfer_form(services: dict[str, object]) -> None:
             "account_number": account_number.strip(),
             "amount": amount,
         }
-        st.session_state.transfer_form = updated_form
+        st.session_state.transfer_form["beneficiary_name"] = updated_form["beneficiary_name"]
+        st.session_state.transfer_form["bank_name"] = updated_form["bank_name"]
+        st.session_state.transfer_form["account_number"] = updated_form["account_number"]
+        st.session_state.transfer_form["amount"] = updated_form["amount"]
 
         errors = validate_transfer_form(updated_form)
         if errors:
@@ -282,20 +294,34 @@ def render_transfer_form(services: dict[str, object]) -> None:
         )
 
         success_message = services["responses"].transfer_success(receipt)
-        st.session_state.assistant_reply = success_message
-        st.session_state.voice_audio_bytes = build_voice_response_audio(success_message)
+        balance_message = services["bank_service"].get_balance()
+        full_message = f"{success_message} {balance_message}"
+        st.session_state.assistant_reply = full_message
+        st.session_state.voice_audio_bytes = build_voice_response_audio(full_message, save_to_file=False)
+        st.success("Your transaction is complete!")
+        speak_text_in_browser(full_message)
         st.success(success_message)
 
 
 def render_voice_section(services: dict[str, object]) -> None:
     """Render the record-and-submit voice interaction section."""
-    welcome_message = services["responses"].welcome()
-
     st.header("Voice Interaction")
+
+    if not st.session_state.voice_interaction_started:
+        st.write("Click the button below to start your voice banking interaction.")
+        if st.button("Start Voice Interaction", type="primary", use_container_width=True):
+            st.session_state.voice_interaction_started = True
+            st.rerun()
+        return
+
+    # Voice interaction has started - show welcome and recording interface
+    welcome_message = services["responses"].welcome()
+    st.success(welcome_message)
+    speak_text_in_browser(welcome_message)
+
     st.write(
         "Record your request, submit it, and receive the assistant response in text and speech."
     )
-    st.success(welcome_message)
     st.info("Click below to record from your microphone, then submit the recording.")
 
     recorded_audio = st.audio_input(
@@ -365,6 +391,8 @@ def render_cheque_section(services: dict[str, object]) -> None:
 
             if result.is_valid:
                 st.success(f"Valid cheque image. {result.message}")
+                st.success("Your transaction is complete!")
+                speak_text_in_browser("Your transaction is complete!")
             else:
                 st.error(f"Invalid cheque image. {result.message}")
         except Exception as error:
@@ -410,6 +438,8 @@ def render_kyc_section() -> None:
                 saved_files.append(str(video_path))
 
             st.success("KYC files saved successfully.")
+            st.success("Your transaction is complete!")
+            speak_text_in_browser("Your transaction is complete!")
             st.write("Saved files:")
             for saved_file in saved_files:
                 st.write(f"- {saved_file}")

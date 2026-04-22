@@ -62,14 +62,20 @@ class VoiceBankingAssistant:
             elif intent.name == "help":
                 self.handle_help()
             elif intent.name == "exit":
-                self._say("Thank you for using Dubai Bank Bank voice assistant. Goodbye.")
+                self._say(self.responses.goodbye())
                 break
             else:
                 self._say(self.responses.unknown(intent.clarification_question))
+                continue
+
+            # Ask if user wants anything else after handling an intent
+            if intent.name in ("balance", "transfer", "cheque", "kyc", "help"):
+                continue_text = self._capture_input(self.responses.ask_continue(), retries=2)
+                if continue_text and any(keyword in continue_text.lower() for keyword in ("no", "exit", "quit", "bye", "stop", "nothing")):
+                    self._say(self.responses.goodbye())
+                    break
 
     def handle_balance(self, intent: StructuredIntent | None = None) -> None:
-        if intent and intent.assistant_reply:
-            self._say(intent.assistant_reply)
         self._say(self.bank_service.get_balance())
 
     def handle_transfer(self, intent: StructuredIntent) -> None:

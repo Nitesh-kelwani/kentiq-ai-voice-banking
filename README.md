@@ -4,17 +4,21 @@ A beginner-friendly, interview-ready Python project for a voice-enabled banking 
 
 ## Features
 
-- Voice input using the microphone
-- Speech-to-text using `speech_recognition`
-- Text-to-speech using `pyttsx3`
-- LLM-based intent detection with Gemini structured JSON output
-- Fallback keyword intent routing if no Gemini API key is configured
-- Dummy balance check
-- Smarter money transfer flow with slot extraction and follow-up questions only for missing details
-- Cheque image verification using basic OpenCV rules
-- Voice KYC recording that saves audio and video locally
-- Error handling for unclear speech, invalid input, and missing devices
-- Uploaded cheque images are copied into `storage/uploads`
+- **Voice input** using the microphone
+- **Speech-to-text** using `speech_recognition`
+- **Text-to-speech** using `pyttsx3`
+- **LLM-based intent detection** with Gemini structured JSON output
+- **Fallback keyword intent routing** if no Gemini API key is configured
+- **Dummy balance check** (starts at AED 50,000.00)
+- **Smart money transfer flow** with slot extraction and follow-up questions only for missing details
+- **Balance deduction** after successful transfers
+- **Cheque image verification** using basic OpenCV rules
+- **Voice KYC recording** that saves audio and video locally
+- **Web interface** using Streamlit for easy interaction
+- **Conversation flow** with "Do you want anything else?" prompts
+- **Immediate audio feedback** for all transactions
+- **Error handling** for unclear speech, invalid input, and missing devices
+- **File organization** with uploaded cheque images copied into `storage/uploads`
 
 ## Folder Structure
 
@@ -49,10 +53,12 @@ Kentiq AI Voice Banking Assistant/
 |   `-- config.py
 |-- storage/
 |   |-- audio/
+|   |   `-- uploads/
 |   |-- uploads/
 |   `-- video/
 |-- .env
 |-- main.py
+|-- streamlit_app.py
 |-- README.md
 `-- requirements.txt
 ```
@@ -63,7 +69,9 @@ Kentiq AI Voice Banking Assistant/
 
 When you run `main.py`, the assistant loads all services and immediately speaks:
 
-`Welcome to Kentiq AI Voice Bot from Dubai Bank Bank. How can I help you?`
+`Welcome to Kentiq AI Voice Bot from Dubai Bank. How can I help you?`
+
+For the web interface (`streamlit_app.py`), click "Start Voice Interaction" to begin.
 
 ### 2. User speaks
 
@@ -84,31 +92,37 @@ If no Gemini API key is available, the app falls back to keyword routing.
 
 ### 4. Assistant performs the action
 
-- For balance, it returns a dummy account balance.
-- For transfer, it first reuses any details Gemini already extracted, then asks only for missing fields.
+- For balance, it returns the current account balance (AED 50,000.00 initially).
+- For transfer, it first reuses any details Gemini already extracted, then asks only for missing fields. After successful transfer, the amount is deducted from the balance.
 - For cheque, it asks the user to upload/select an image and checks if it looks like a cheque.
 - For KYC, it records audio and video and stores them locally.
 
-### 5. Assistant speaks the result
+### 5. Transaction completion
 
-Every result is printed in the terminal and also spoken using text-to-speech.
+After each successful transaction, the assistant speaks "Your transaction is complete!" and asks "Do you want anything else?"
+
+### 6. Assistant speaks the result
+
+Every result is printed in the terminal/web interface and also spoken using text-to-speech.
 
 ## How To Run
 
-### 1. Create and activate a virtual environment
+### Option 1: Command-Line Interface
+
+#### 1. Create and activate a virtual environment
 
 ```powershell
-python -m venv .venv
-.venv\Scripts\activate
+python -m venv venv
+venv\Scripts\activate
 ```
 
-### 2. Install dependencies
+#### 2. Install dependencies
 
 ```powershell
 pip install -r requirements.txt
 ```
 
-### 3. Set the Gemini API key
+#### 3. Set the Gemini API key
 
 The project now loads environment variables automatically from `.env`.
 
@@ -119,10 +133,46 @@ GEMINI_API_KEY=your_api_key_here
 GEMINI_MODEL=gemini-2.5-flash
 ```
 
-### 4. Run the assistant
+#### 4. Run the assistant
 
 ```powershell
 python main.py
+```
+
+### Option 2: Web Interface (Streamlit)
+
+#### 1. Follow steps 1-3 above for virtual environment and API key
+
+#### 2. Run the web app
+
+```powershell
+streamlit run streamlit_app.py
+```
+
+Then open your browser to `http://localhost:8501`
+
+The web interface provides:
+- Voice interaction with immediate audio feedback
+- Transfer form with auto-filled fields from voice input
+- Cheque verification upload
+- KYC file upload
+- Visual feedback for all transactions
+
+## Sample Conversation Flow
+
+```
+Bot: Welcome to Kentiq AI Voice Bot from Dubai Bank. How can I help you?
+User: check balance
+Bot: Hello Naman Roy, your available balance is AED 50,000.00.
+Bot: Do you want anything else?
+User: transfer 500 to John
+Bot: Of course. I can help you with a money transfer.
+[Transfer flow collects missing details...]
+Bot: Your transfer is complete. AED 500.00 has been sent to John. Your reference number is TXN123456.
+Bot: Hello Naman Roy, your available balance is AED 49,500.00.
+Bot: Do you want anything else?
+User: no
+Bot: Thank you, goodbye.
 ```
 
 ## Sample Commands
@@ -137,16 +187,18 @@ python main.py
 
 ## Notes For Interview Explanation
 
-- The project is modular, so each responsibility is separated into a small file.
-- `core/assistant.py` controls the conversation flow.
-- `core/intent_router.py` decides whether to use Gemini or fallback routing.
-- `models/intent_models.py` defines the structured intent object used across the app.
-- `banking/dummy_bank.py` isolates business logic from voice logic.
-- `services/gemini_intent_service.py` calls Gemini and requests structured JSON output.
-- `services/transfer_flow.py` manages slot-filling for transfers.
-- `services/response_builder.py` keeps voice responses natural and reusable.
-- `services/` contains reusable integrations like STT, TTS, camera, recorder, cheque verification, and LLM integration.
-- `storage/` keeps generated files organized.
+- **Modular Architecture**: Each responsibility is separated into focused files
+- **Core Logic**: `core/assistant.py` controls conversation flow with "Do you want anything else?" prompts
+- **Intent Processing**: `core/intent_router.py` decides between Gemini LLM or fallback keyword routing
+- **Data Models**: `models/intent_models.py` defines structured intent objects used across the app
+- **Business Logic**: `banking/dummy_bank.py` isolates banking operations with balance deduction after transfers
+- **LLM Integration**: `services/gemini_intent_service.py` calls Gemini with structured JSON output requests
+- **Transfer Flow**: `services/transfer_flow.py` manages intelligent slot-filling for transfers
+- **Response Management**: `services/response_builder.py` keeps voice responses natural and reusable
+- **Web Interface**: `streamlit_app.py` provides user-friendly web UI with immediate audio feedback
+- **Service Layer**: `services/` contains reusable integrations (STT, TTS, camera, recorder, cheque verification, LLM)
+- **File Management**: `storage/` keeps generated files organized with proper cleanup
+- **Conversation UX**: Natural flow with transaction completion confirmations and follow-up prompts
 
 ## Gemini Structured Intent Example
 

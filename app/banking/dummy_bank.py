@@ -17,7 +17,7 @@ class DummyBankService:
     def __init__(self) -> None:
         self.customer_name = "Naman Roy"
         self.account_number = "8745123098"
-        self.balance = 353433.75
+        self.balance = 50000
 
     def get_balance(self) -> str:
         return (
@@ -34,6 +34,9 @@ class DummyBankService:
     ) -> TransferReceipt:
         reference_number = f"TXN{random.randint(100000, 999999)}"
         created_at = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+        # Deduct the amount from the balance
+        self.balance -= amount
 
         return TransferReceipt(
             beneficiary_name=beneficiary_name,
